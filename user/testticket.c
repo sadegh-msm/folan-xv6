@@ -4,7 +4,6 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user.h"
-#include "kernel/proc.h"
 #define LOOP 1326044832
 
 //Avoid optimization
@@ -18,16 +17,21 @@ void spin() {
 
 #pragma GCC pop_options
 
+struct processes_info {
+    int num_processes;
+    int pids[64];
+    int ticks[64]; // ticks = number of times process has been scheduled
+    int tickets[64]; // tickets = number of tickets set by settickets()
+};
 void printprocessinfo(int pid)
 {
     struct processes_info pi = {0};
     getprocessinfo(&pi);
     int i;
-    for (i = 0; i < NPROC; i++) {
-        if(pi.pid[i] == pid) {
+    for (i = 0; i < 64; i++) {
+        if(pi.pids[i] == pid) {
             printf("Number of tickets that PID %d has: %d\n", pid, pi.tickets[i]);
             printf("Number of ticks that PID %d has: %d\n", pid, pi.ticks[i]);
-            printf("Is the process with PID %d in use? (0 or 1): %d\n\n\n", pid, pi.inuse[i]);
             break;
         }
     }
