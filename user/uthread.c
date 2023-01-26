@@ -14,7 +14,6 @@ struct threadcontext {
     uint64 ra;
     uint64 sp;
 
-    // callee-saved
     uint64 s0;
     uint64 s1;
     uint64 s2;
@@ -54,12 +53,11 @@ void
 thread_schedule(void)
 {
   struct thread *t, *next_thread;
-
   /* Find another runnable thread. */
   next_thread = 0;
   t = current_thread + 1;
   for(int i = 0; i < MAX_THREAD; i++){
-    if(t >= all_thread + MAX_THREAD) {
+    if(t >= all_thread + MAX_THREAD) { // all_thread means len(all_thread)?
         t = all_thread;
     }
     if(t->state == RUNNABLE) {

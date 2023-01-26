@@ -91,3 +91,25 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_settickets(void)
+{
+    int n;
+    argint(0, &n);
+
+    if(n<1)
+        return -1;
+    settickets(n);
+    return 0;
+}
+
+
+uint64
+sys_getprocessinfo(void)
+{
+    struct processes_info *p;
+
+    argaddr(0, (uint64*)&p);
+    return getprocessinfo(p);
+}
