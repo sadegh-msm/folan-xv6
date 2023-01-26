@@ -191,7 +191,6 @@ UPROGS=\
 
 
 
-
 ifeq ($(LAB),$(filter $(LAB), lock))
 UPROGS += \
 	$U/_stats

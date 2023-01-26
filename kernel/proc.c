@@ -17,7 +17,6 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
-extern int randomrange(int, int);
 
 static void freeproc(struct proc *p);
 
@@ -453,11 +452,27 @@ alltickets(void)
     int tickets = 0;
 
     for(p = proc; p < &proc[NPROC]; p++) {
-        //acquire(&p->lock);  //Acquire the lock of the process to see the state
+        acquire(&p->lock);  //Acquire the lock of the process to see the state
         if(p->state == RUNNABLE) tickets = tickets + p->tickets; //Increase total tickets if the state of the process is runnable
     }
 
     return tickets;
+}
+
+int
+changetickets(int tickets)
+{
+    int pid = myproc()->pid;
+    struct proc *p = 0;
+    acquire(&p->lock);
+    for(p = proc; p < &proc[NPROC]; p++) {
+        if(p->pid == pid) {
+            p->tickets = tickets;
+            break;
+        }
+    }
+    release(&p->lock);
+    return pid;
 }
 
 
@@ -471,51 +486,107 @@ alltickets(void)
 void
 scheduler(void)
 {
+//    struct proc *p;
+//    struct proc *ps = 0;  //Struct to save the selected process
+//    struct cpu *c = mycpu();
+//    int tselect;  //Save the number of the tickets selected in order to get the selected process
+//    int tickets;  //Save all tickets
+//
+//    c->proc = 0;
+//    for(;;){
+//        // Avoid deadlock by ensuring that devices can interrupt.
+//        intr_on();
+//
+//        tickets = alltickets();
+//
+//        if(tickets>0){  //If there is no tickets scheduler process continues running
+//            tselect = randomrange(1, tickets); //Get a random number between all tickets and 1
+//
+//            for(p = proc; p < &proc[NPROC]; p++) { //Select a process
+//                if(p->state == RUNNABLE) tselect = tselect - p->tickets;
+//                if(tselect<=0){
+//                    ps = p;
+//                    break;
+//                }
+//            }
+//
+//            //Release all the process locks but not the one of the process selected
+//            for(p = proc; p < &proc[NPROC]; p++) {
+//                if(p->pid != ps->pid) release(&p->lock);
+//            }
+//
+//            // Switch to chosen process.
+//            ps->state = RUNNING;
+//            ps->ticks = ps->ticks+1;   //Add a tick
+//            c->proc = ps;
+//            swtch(&c->context, &ps->context);
+//
+//            // Process is done running for now.
+//            // It should have changed its p->state before coming back.
+//            c->proc = 0;
+//
+//            release(&ps->lock);
+//        } else {
+//            for(p = proc; p < &proc[NPROC]; p++) {    //Release all the process locks
+//                release(&p->lock);
+//            }
+//        }
+//    }
+
     struct proc *p;
-    struct proc *ps = 0;  //Struct to save the selected process
     struct cpu *c = mycpu();
-    int tselect;  //Save the number of the tickets selected in order to get the selected process
-    int tickets;  //Save all tickets
 
     c->proc = 0;
     for(;;){
         // Avoid deadlock by ensuring that devices can interrupt.
         intr_on();
 
-        tickets = alltickets();
+        for(p = proc; p < &proc[NPROC]; p++) {
+            acquire(&p->lock);
 
-        if(tickets>0){  //If there is no tickets scheduler process continues running
-            tselect = randomrange(1, tickets); //Get a random number between all tickets and 1
+#ifdef DEFAULT
+            // do nothing
+#else
 
-            for(p = proc; p < &proc[NPROC]; p++) { //Select a process
-                if(p->state == RUNNABLE)
-                    tselect = tselect - p->tickets;
-                if(tselect<=0){
-                    ps = p;
-                    break;
-                }
+#ifdef RANDOM
+            // currently every process has only three tickets
+          // in the future I will make a method to change their tickets
+          // this method allows a process with a greater number of tickets
+          // a higher chance of drawing 0 or negative in order to execute
+            if(p->state != RUNNABLE) {
+              release(&p->lock);
+              continue;
             }
 
-            //Release all the process locks but not the one of the process selected
-            for(p = proc; p < &proc[NPROC]; p++) {
-                if(p->pid != ps->pid) release(&p->lock);
+            int total_tickets = alltickets();
+            int draw = -1;
+            if(total_tickets > 0 || draw <= 0) {
+              draw = random() % total_tickets;
+            }
+            draw = draw - p->tickets;
+            if(draw >= 0) {
+              release(&p->lock);
+              continue;
             }
 
-            // Switch to chosen process.
-            ps->state = RUNNING;
-            ps->ticks = ps->ticks+1;   //Add a tick
-            c->proc = ps;
-            swtch(&c->context, &ps->context);
+#else
 
-            // Process is done running for now.
-            // It should have changed its p->state before coming back.
-            c->proc = 0;
+#endif
+#endif
 
-            release(&ps->lock);
-        }else{
-            for(p = proc; p < &proc[NPROC]; p++) {    //Release all the process locks
-                release(&p->lock);
+            if(p->state == RUNNABLE) {
+                // Switch to chosen process.  It is the process's job
+                // to release its lock and then reacquire it
+                // before jumping back to us.
+                p->state = RUNNING;
+                c->proc = p;
+                swtch(&c->context, &p->context);
+
+                // Process is done running for now.
+                // It should have changed its p->state before coming back.
+                c->proc = 0;
             }
+            release(&p->lock);
         }
     }
 }

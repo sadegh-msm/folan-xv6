@@ -22,15 +22,3 @@ random(void)
     return (z1 ^ z2 ^ z3 ^ z4) / 2;
 }
 
-// Return a random integer between a given range.
-int
-randomrange(int lo, int hi)
-{
-    if (hi < lo) {
-        int tmp = lo;
-        lo = hi;
-        hi = tmp;
-    }
-    int range = hi - lo + 1;
-    return random() % (range) + lo;
-}
