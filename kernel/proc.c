@@ -5,6 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
+
 
 struct cpu cpus[NCPU];
 
@@ -16,6 +18,8 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 extern void forkret(void);
+extern int randomrange(int, int); // TODO
+
 static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
@@ -322,6 +326,14 @@ fork(void)
   np->state = RUNNABLE;
   release(&np->lock);
 
+  acquire(&np->lock);
+  np->tickets = p->tickets; //Set to son process the tickets of its father
+  release(&np->lock);
+
+  acquire(&np->lock);
+  np->ticks = 0;   //Set ticks value to 0
+  release(&np->lock);
+
   return pid;
 }
 
@@ -434,6 +446,22 @@ wait(uint64 addr)
   }
 }
 
+//Count all tickets
+int
+alltickets(void)
+{
+    struct proc *p;
+    int tickets = 0;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+        acquire(&p->lock);  //Acquire the lock of the process to see the state
+        if(p->state == RUNNABLE)  tickets = tickets + p->tickets; //Increase total tickets if the state of the process is runnable
+    }
+
+    return tickets;
+}
+
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -444,31 +472,52 @@ wait(uint64 addr)
 void
 scheduler(void)
 {
-  struct proc *p;
-  struct cpu *c = mycpu();
-  
-  c->proc = 0;
-  for(;;){
-    // Avoid deadlock by ensuring that devices can interrupt.
-    intr_on();
+    struct proc *p;
+    struct proc *ps = 0;  //Struct to save the selected process
+    struct cpu *c = mycpu();
+    int tselect;  //Save the number of the tickets selected in order to get the selected process
+    int tickets;  //Save all tickets
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    c->proc = 0;
+    for(;;){
+        // Avoid deadlock by ensuring that devices can interrupt.
+        intr_on();
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
+        tickets = alltickets();
+
+        if(tickets>0){  //If there is no tickets scheduler process continues running
+            tselect = randomrange(1, tickets); //Get a random number between all tickets and 1
+
+            for(p = proc; p < &proc[NPROC]; p++) { //Select a process
+                if(p->state == RUNNABLE) tselect = tselect - p->tickets;
+                if(tselect<=0){
+                    ps = p;
+                    break;
+                }
+            }
+
+            //Release all the process locks but not the one of the process selected
+            for(p = proc; p < &proc[NPROC]; p++) {
+                if(p->pid != ps->pid)release(&p->lock);
+            }
+
+            // Switch to chosen process.
+            ps->state = RUNNING;
+            ps->ticks = ps->ticks+1;   //Add a tick
+            c->proc = ps;
+            swtch(&c->context, &ps->context);
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+
+            release(&ps->lock);
+        }else{
+            for(p = proc; p < &proc[NPROC]; p++) {    //Release all the process locks
+                release(&p->lock);
+            }
+        }
     }
-  }
 }
 
 // Switch to scheduler.  Must hold only p->lock
@@ -680,4 +729,44 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//Set a number of tickets to a process
+// and update the global array of processes
+void
+settickets(int n)
+{
+    struct proc *p;
+    int i = 0;
+
+    myproc()->tickets = n;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+        if(p->pid == myproc()->pid){
+            proc[i].tickets = n;
+            break;
+        }
+        i++;
+    }
+}
+
+//Return data of all processes being executed
+int
+getprocessinfo(uint64 *addr)
+{
+    struct processes_info inf;
+    struct proc *p;
+    int i = 0;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+        if(p->state == UNUSED)
+            inf.inuse++;
+        else{
+            inf.tickets[i] = p->tickets;
+            inf.pids[i] = p->pid;
+            inf.ticks[i] = p->ticks;
+        }
+        i++;
+    }
+    return copyout(myproc()->pagetable, *addr, (char *)&inf, sizeof(inf));
 }
