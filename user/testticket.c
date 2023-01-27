@@ -25,7 +25,7 @@ int main() {
         printf("fork failed\n");
         exit(1);
     } else if (pid == 0) {
-        // settickets(20);
+        settickets(20);
 
         printf("calculation res: %d\n", heavy_calculation());
 
