@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "random.c"
+#include "pstat.h"
 
 struct cpu cpus[NCPU];
 
@@ -825,7 +826,6 @@ settickets(int n)
 int
 getprocessinfo(struct processes_info *ps)
 {
-
     struct proc *p;
     int i = 0;
 
