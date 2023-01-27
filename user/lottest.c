@@ -42,6 +42,7 @@ main(int argc, char *argv[])
     settickets(900);
 
     //Create different processes with 10, 20 and 30 tickets
+	
     if ((pid1 = fork()) == 0) {
         settickets(10);
         int pp1 = getpid();
@@ -51,6 +52,7 @@ main(int argc, char *argv[])
         printpinfo(pp1);
         exit(0);
     }
+	
     else if ((pid2 = fork()) == 0) {
         settickets(20);
         int pp2 = getpid();
@@ -60,6 +62,7 @@ main(int argc, char *argv[])
         printpinfo(pp2);
         exit(0);
     }
+	
     else if ((pid3 = fork()) == 0) {
         settickets(30);
         int pp3 = getpid();
@@ -70,7 +73,9 @@ main(int argc, char *argv[])
         exit(0);
     }
 
+
     int pid11 = pid1;
+
 
     if((first = wait(&pid11))>0 || (first = wait(&pid2))>0 || (first = wait(&pid3))>0){
         if(first == pid1){
@@ -93,6 +98,5 @@ main(int argc, char *argv[])
             kill(pid2);
         }
     }
-
     exit(0);
 }
