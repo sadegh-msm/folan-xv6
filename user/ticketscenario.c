@@ -8,7 +8,6 @@
 
 int
 main(int argc, char *argv[]){
-    int t = 15;
     if (settickets(15)){
         printf("successfully done...\n");
     } else {
