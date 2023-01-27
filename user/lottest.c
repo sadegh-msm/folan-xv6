@@ -28,7 +28,6 @@ void printpinfo(int pid)
         if(pi.pids[i] == pid) {
             printf("Number of tickets that PID %d has: %d\n", pid, pi.tickets[i]);
             printf("Number of ticks that PID %d has: %d\n", pid, pi.ticks[i]);
-            printf("Is the process with PID %d in use? (0 or 1): %d\n\n\n", pid, pi.num_processes);
             break;
         }
     }
