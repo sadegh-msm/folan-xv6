@@ -17,7 +17,7 @@ int heavy_calculation(void) {
     return a * b;
 }
 
-int main() {
+int main(int argc ,char * argv) {
     settickets(10);
 
     int pid = fork();
@@ -28,7 +28,6 @@ int main() {
         settickets(20);
 
         printf("calculation res: %d\n", heavy_calculation());
-
         struct processes_info ps;
         getprocessinfo(&ps);
 
@@ -36,7 +35,6 @@ int main() {
         for (int j = 0; j < ps.num_processes; ++j) {
             printf("pid %d, tickets %d, ticks %d\n", ps.pids[j], ps.tickets[j], ps.ticks[j]);
         }
-
         exit(0);
     } else {
         wait(0);
@@ -49,7 +47,6 @@ int main() {
         for (int j = 0; j < ps.num_processes; ++j) {
             printf("pid %d, tickets %d, ticks %d\n", ps.pids[j], ps.tickets[j], ps.ticks[j]);
         }
-
         exit(0);
     }
 }
